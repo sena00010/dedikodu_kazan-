@@ -1,0 +1,95 @@
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../models/app_user.dart';
+import '../../services/api_client.dart';
+import '../../services/revenuecat_service.dart';
+
+final authControllerProvider =
+    AsyncNotifierProvider<AuthController, AuthState>(AuthController.new);
+
+class AuthState {
+  const AuthState({this.user, this.onboardingCompleted = false});
+
+  final AppUser? user;
+  final bool onboardingCompleted;
+  bool get isAuthenticated => user != null;
+}
+
+class AuthController extends AsyncNotifier<AuthState> {
+  @override
+  Future<AuthState> build() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) return const AuthState();
+    final api = ref.read(apiClientProvider);
+    final res = await api.dio.get<Map<String, dynamic>>('/api/user/me');
+    return AuthState(
+      user: AppUser.fromJson(res.data!),
+      onboardingCompleted: prefs.getBool('onboarding_completed') ?? false,
+    );
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final google = await GoogleSignIn().signIn();
+      if (google == null) return const AuthState();
+      final auth = await google.authentication;
+      final credential = fb.GoogleAuthProvider.credential(
+        accessToken: auth.accessToken,
+        idToken: auth.idToken,
+      );
+      final firebaseUser = await fb.FirebaseAuth.instance.signInWithCredential(credential);
+      final firebaseToken = await firebaseUser.user!.getIdToken();
+      final api = ref.read(apiClientProvider);
+      final res = await api.dio.post<Map<String, dynamic>>(
+        '/api/auth/login',
+        data: {'firebase_token': firebaseToken},
+      );
+      await _persist(res.data!['token'] as String);
+      await RevenueCatService.configure(firebaseUser.user!.uid);
+      return AuthState(user: AppUser.fromJson(res.data!['user'] as Map<String, dynamic>));
+    });
+  }
+
+  Future<void> emailLogin(String email, String password) => _email('/api/auth/email-login', {
+        'email': email,
+        'password': password,
+      });
+
+  Future<void> emailRegister(String fullName, String email, String password) =>
+      _email('/api/auth/register', {
+        'full_name': fullName,
+        'email': email,
+        'password': password,
+      });
+
+  Future<void> _email(String path, Map<String, dynamic> data) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final api = ref.read(apiClientProvider);
+      final res = await api.dio.post<Map<String, dynamic>>(path, data: data);
+      await _persist(res.data!['token'] as String);
+      return AuthState(user: AppUser.fromJson(res.data!['user'] as Map<String, dynamic>));
+    });
+  }
+
+  Future<void> completeOnboarding(Map<String, dynamic> data) async {
+    final api = ref.read(apiClientProvider);
+    final res = await api.dio.put<Map<String, dynamic>>('/api/user/me', data: data);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_completed', true);
+    state = AsyncData(AuthState(
+      user: AppUser.fromJson(res.data!),
+      onboardingCompleted: true,
+    ));
+  }
+
+  Future<void> _persist(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', token);
+  }
+}

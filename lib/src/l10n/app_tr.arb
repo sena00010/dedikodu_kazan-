@@ -1,0 +1,12 @@
+{
+  "@@locale": "tr",
+  "appName": "Dedikodu Kazanı",
+  "appTagline": "Kazan kaynasın, ortam şenlensin.",
+  "loginTitle": "Hoş geldin",
+  "googleLogin": "Google ile devam et",
+  "emailLogin": "E-posta ile giriş",
+  "register": "Kayıt ol",
+  "fullName": "İsim soyisim",
+  "profile": "Profil",
+  "premium": "Premium"
+}

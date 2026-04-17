@@ -1,0 +1,36 @@
+name: dedikodu_kazani
+description: AI destekli dedikodu ve sohbet platformu.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  dio: ^5.7.0
+  flutter_riverpod: ^2.6.1
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  google_sign_in: ^6.2.2
+  web_socket_channel: ^3.0.1
+  shared_preferences: ^2.3.3
+  purchases_flutter: ^8.4.4
+  image_picker: ^1.1.2
+  record: ^6.1.2
+  path_provider: ^2.1.5
+  emoji_picker_flutter: ^4.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
