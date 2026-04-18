@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/thread.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_theme.dart';
 import '../chat/chat_page.dart';
 
 final threadsProvider = FutureProvider.autoDispose<List<GossipThread>>((ref) async {
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get<Map<String, dynamic>>('/api/threads');
-  final items = res.data!['items'] as List<dynamic>;
+  final items = res.data?['items'] as List<dynamic>? ?? const [];
   return items.map((e) => GossipThread.fromJson(e as Map<String, dynamic>)).toList();
 });
 
@@ -30,25 +31,60 @@ class ThreadsPage extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showNewThread(context, ref),
-        icon: const Icon(Icons.add_comment_outlined),
-        label: const Text('Kazan aç'),
+        icon: const Icon(Icons.add_comment_rounded),
+        label: const Text('Kazan yak'),
       ),
       body: threads.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
+        error: (e, _) => Center(child: Text('Kazan şu an kısık ateşte. Bir daha yenile.')),
         data: (items) => LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 900 ? 2 : 1;
-            return GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                childAspectRatio: columns == 2 ? 2.8 : 2.35,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-              ),
-              itemCount: items.length,
-              itemBuilder: (context, index) => _ThreadTile(thread: items[index]),
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: AppGradients.gossip,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 34),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Bugün kazan kaynıyor',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Ortaya bir laf düşür, gerisini mahalle halleder.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SliverGrid.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    childAspectRatio: columns == 2 ? 2.8 : 2.35,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                  ),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) => Padding(
+                    padding: EdgeInsets.fromLTRB(16, index == 0 ? 0 : 0, 16, 0),
+                    child: _ThreadTile(thread: items[index], index: index),
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -89,14 +125,16 @@ class ThreadsPage extends ConsumerWidget {
 }
 
 class _ThreadTile extends StatelessWidget {
-  const _ThreadTile({required this.thread});
+  const _ThreadTile({required this.thread, required this.index});
   final GossipThread thread;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
+    final colors = [AppColors.lilac, const Color(0xFFFFD8ED), const Color(0xFFFFE1CA), AppColors.mint];
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surfaceContainerHighest,
+      color: colors[index % colors.length],
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),

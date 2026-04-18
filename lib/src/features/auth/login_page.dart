@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/tr_strings.dart';
+import '../../theme/app_theme.dart';
 import 'auth_controller.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -24,24 +25,53 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final wide = MediaQuery.sizeOf(context).width >= 760;
     final errorText = auth.hasError ? auth.error.toString() : widget.errorText;
     return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - 48,
-                maxWidth: wide ? 980 : 520,
-              ),
-              child: Center(
-                child: wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(child: _BrandPanel(errorText: errorText)),
-                          const SizedBox(width: 32),
-                          Expanded(
-                            child: _LoginForm(
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: Theme.of(context).brightness == Brightness.dark
+              ? AppGradients.gossip
+              : const LinearGradient(
+                  colors: [Color(0xFFFFFBF7), Color(0xFFF0E9FF), Color(0xFFFFE0EF)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 48,
+                  maxWidth: wide ? 980 : 520,
+                ),
+                child: Center(
+                  child: wide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(child: _BrandPanel(errorText: errorText)),
+                            const SizedBox(width: 32),
+                            Expanded(
+                              child: _LoginForm(
+                                register: _register,
+                                name: _name,
+                                email: _email,
+                                password: _password,
+                                loading: auth.isLoading,
+                                onSubmit: _submitEmail,
+                                onGoogle: _submitGoogle,
+                                onToggle: _toggleMode,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _BrandPanel(errorText: errorText),
+                            const SizedBox(height: 28),
+                            _LoginForm(
                               register: _register,
                               name: _name,
                               email: _email,
@@ -51,27 +81,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onGoogle: _submitGoogle,
                               onToggle: _toggleMode,
                             ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _BrandPanel(errorText: errorText),
-                          const SizedBox(height: 28),
-                          _LoginForm(
-                            register: _register,
-                            name: _name,
-                            email: _email,
-                            password: _password,
-                            loading: auth.isLoading,
-                            onSubmit: _submitEmail,
-                            onGoogle: _submitGoogle,
-                            onToggle: _toggleMode,
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                ),
               ),
             ),
           ),
@@ -120,6 +132,12 @@ class _LoginForm extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Text(
+          register ? 'Kazana ilk kepçeyi atalım' : 'Kazana hoş geldin',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 18),
         if (register)
           TextField(
             controller: name,
@@ -164,24 +182,47 @@ class _BrandPanel extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 72,
-          height: 72,
+          width: 88,
+          height: 88,
           decoration: BoxDecoration(
-            color: scheme.primary,
+            gradient: AppGradients.warm,
             borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.pink.withValues(alpha: 0.28),
+                blurRadius: 28,
+                offset: const Offset(0, 16),
+              ),
+            ],
           ),
-          child: Icon(Icons.local_fire_department, color: scheme.onPrimary, size: 38),
+          child: const Icon(Icons.local_fire_department, color: Colors.white, size: 46),
         ),
         const SizedBox(height: 24),
-        Text(TrStrings.appName, style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          TrStrings.appName,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900),
+        ),
         const SizedBox(height: 10),
-        Text(TrStrings.appTagline, style: Theme.of(context).textTheme.titleMedium),
+        Text(TrStrings.appTagline, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
         if (errorText != null) ...[
           const SizedBox(height: 16),
-          Text(errorText!, style: TextStyle(color: scheme.error)),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.errorContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              errorText!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ],
     );

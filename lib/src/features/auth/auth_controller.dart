@@ -93,15 +93,26 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> completeOnboarding(Map<String, dynamic> data) async {
+    final user = await updateProfile(data);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_completed', true);
+    state = AsyncData(AuthState(
+      user: user,
+      onboardingCompleted: true,
+    ));
+  }
+
+  Future<AppUser> updateProfile(Map<String, dynamic> data) async {
     try {
       final api = ref.read(apiClientProvider);
       final res = await api.dio.put<Map<String, dynamic>>('/api/user/me', data: data);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('onboarding_completed', true);
+      final user = AppUser.fromJson(res.data!);
+      final current = state.valueOrNull;
       state = AsyncData(AuthState(
-        user: AppUser.fromJson(res.data!),
-        onboardingCompleted: true,
+        user: user,
+        onboardingCompleted: current?.onboardingCompleted ?? false,
       ));
+      return user;
     } on DioException catch (error) {
       final data = error.response?.data;
       if (data is Map && data['error'] is String) {
@@ -109,6 +120,14 @@ class AuthController extends AsyncNotifier<AuthState> {
       }
       throw AuthMessage('Profil kaydedilemedi. Bağlantıyı kontrol edip tekrar dene.');
     }
+  }
+
+  Future<void> finishOnboarding() async {
+    final current = state.valueOrNull;
+    if (current?.user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_completed', true);
+    state = AsyncData(AuthState(user: current!.user, onboardingCompleted: true));
   }
 
   Future<void> skipOnboarding() async {

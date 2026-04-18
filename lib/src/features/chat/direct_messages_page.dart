@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_user.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_theme.dart';
 import 'chat_page.dart';
 
 final userSearchProvider = FutureProvider.family.autoDispose<List<AppUser>, String>((ref, query) async {
   if (query.trim().length < 2) return const [];
   final api = ref.read(apiClientProvider);
   final res = await api.dio.get<Map<String, dynamic>>('/api/users/search', queryParameters: {'q': query});
-  final items = res.data!['items'] as List<dynamic>;
+  final items = res.data?['items'] as List<dynamic>? ?? const [];
   return items.map((e) => AppUser.fromJson(e as Map<String, dynamic>)).toList();
 });
 
@@ -27,16 +28,34 @@ class _DirectMessagesPageState extends ConsumerState<DirectMessagesPage> {
   Widget build(BuildContext context) {
     final users = ref.watch(userSearchProvider(_query.text));
     return Scaffold(
-      appBar: AppBar(title: const Text('Özel dedikodu')),
+      appBar: AppBar(title: const Text('Kazan Kankaları')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(gradient: AppGradients.warm, borderRadius: BorderRadius.circular(8)),
+            child: Column(
+              children: [
+                const Icon(Icons.favorite_rounded, color: Colors.white, size: 34),
+                const SizedBox(height: 8),
+                Text(
+                  'Özelden fısılda',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                const Text('Dedikodu kankanı bul, özel kazanı yak.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _query,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
-              labelText: 'Kullanıcı ara',
+              labelText: 'Kazan Kankası ara',
               hintText: 'İsim veya kullanıcı adı yaz',
             ),
           ),
@@ -47,13 +66,15 @@ class _DirectMessagesPageState extends ConsumerState<DirectMessagesPage> {
             data: (items) => Column(
               children: [
                 for (final user in items)
-                  Card(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
                     child: ListTile(
-                      leading: CircleAvatar(child: Text(user.fullName.characters.first.toUpperCase())),
+                      tileColor: Theme.of(context).colorScheme.surface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      leading: CircleAvatar(backgroundColor: AppColors.lilac, child: Text(user.fullName.characters.first.toUpperCase())),
                       title: Text(user.fullName),
                       subtitle: Text('@${user.username}'),
-                      trailing: const Icon(Icons.chat_bubble_outline),
+                      trailing: const Icon(Icons.chat_bubble_rounded, color: AppColors.violet),
                       onTap: () => _openDM(user),
                     ),
                   ),
