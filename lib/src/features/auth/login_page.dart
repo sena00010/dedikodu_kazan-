@@ -22,61 +22,56 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final wide = MediaQuery.sizeOf(context).width >= 760;
+    final errorText = auth.hasError ? auth.error.toString() : widget.errorText;
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: wide ? 980 : 520),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Flex(
-                direction: wide ? Axis.horizontal : Axis.vertical,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: _BrandPanel(errorText: widget.errorText),
-                  ),
-                  SizedBox(width: wide ? 32 : 0, height: wide ? 0 : 28),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_register)
-                          TextField(
-                            controller: _name,
-                            decoration: const InputDecoration(labelText: TrStrings.fullName),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - 48,
+                maxWidth: wide ? 980 : 520,
+              ),
+              child: Center(
+                child: wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(child: _BrandPanel(errorText: errorText)),
+                          const SizedBox(width: 32),
+                          Expanded(
+                            child: _LoginForm(
+                              register: _register,
+                              name: _name,
+                              email: _email,
+                              password: _password,
+                              loading: auth.isLoading,
+                              onSubmit: _submitEmail,
+                              onGoogle: _submitGoogle,
+                              onToggle: _toggleMode,
+                            ),
                           ),
-                        if (_register) const SizedBox(height: 12),
-                        TextField(
-                          controller: _email,
-                          decoration: const InputDecoration(labelText: TrStrings.email),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _password,
-                          obscureText: true,
-                          decoration: const InputDecoration(labelText: TrStrings.password),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: auth.isLoading ? null : _submitEmail,
-                          child: Text(_register ? TrStrings.register : TrStrings.emailLogin),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                          onPressed: auth.isLoading
-                              ? null
-                              : () => ref.read(authControllerProvider.notifier).signInWithGoogle(),
-                          child: const Text(TrStrings.googleLogin),
-                        ),
-                        TextButton(
-                          onPressed: () => setState(() => _register = !_register),
-                          child: Text(_register ? TrStrings.emailLogin : TrStrings.register),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _BrandPanel(errorText: errorText),
+                          const SizedBox(height: 28),
+                          _LoginForm(
+                            register: _register,
+                            name: _name,
+                            email: _email,
+                            password: _password,
+                            loading: auth.isLoading,
+                            onSubmit: _submitEmail,
+                            onGoogle: _submitGoogle,
+                            onToggle: _toggleMode,
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
@@ -85,6 +80,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  void _toggleMode() => setState(() => _register = !_register);
+
+  void _submitGoogle() => ref.read(authControllerProvider.notifier).signInWithGoogle();
+
   void _submitEmail() {
     final controller = ref.read(authControllerProvider.notifier);
     if (_register) {
@@ -92,6 +91,67 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } else {
       controller.emailLogin(_email.text, _password.text);
     }
+  }
+}
+
+class _LoginForm extends StatelessWidget {
+  const _LoginForm({
+    required this.register,
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.loading,
+    required this.onSubmit,
+    required this.onGoogle,
+    required this.onToggle,
+  });
+
+  final bool register;
+  final TextEditingController name;
+  final TextEditingController email;
+  final TextEditingController password;
+  final bool loading;
+  final VoidCallback onSubmit;
+  final VoidCallback onGoogle;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (register)
+          TextField(
+            controller: name,
+            decoration: const InputDecoration(labelText: TrStrings.fullName),
+          ),
+        if (register) const SizedBox(height: 12),
+        TextField(
+          controller: email,
+          decoration: const InputDecoration(labelText: TrStrings.email),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: password,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: TrStrings.password),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: loading ? null : onSubmit,
+          child: Text(register ? TrStrings.register : TrStrings.emailLogin),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: loading ? null : onGoogle,
+          child: const Text(TrStrings.googleLogin),
+        ),
+        TextButton(
+          onPressed: onToggle,
+          child: Text(register ? TrStrings.emailLogin : TrStrings.register),
+        ),
+      ],
+    );
   }
 }
 

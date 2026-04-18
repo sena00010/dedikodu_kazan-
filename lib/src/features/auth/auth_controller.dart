@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -24,12 +25,18 @@ class AuthController extends AsyncNotifier<AuthState> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) return const AuthState();
-    final api = ref.read(apiClientProvider);
-    final res = await api.dio.get<Map<String, dynamic>>('/api/user/me');
-    return AuthState(
-      user: AppUser.fromJson(res.data!),
-      onboardingCompleted: prefs.getBool('onboarding_completed') ?? false,
-    );
+    try {
+      final api = ref.read(apiClientProvider);
+      final res = await api.dio.get<Map<String, dynamic>>('/api/user/me');
+      return AuthState(
+        user: AppUser.fromJson(res.data!),
+        onboardingCompleted: prefs.getBool('onboarding_completed') ?? false,
+      );
+    } on DioException {
+      await prefs.remove('auth_token');
+      await prefs.remove('onboarding_completed');
+      return const AuthState();
+    }
   }
 
   Future<void> signInWithGoogle() async {
@@ -70,20 +77,47 @@ class AuthController extends AsyncNotifier<AuthState> {
   Future<void> _email(String path, Map<String, dynamic> data) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final api = ref.read(apiClientProvider);
-      final res = await api.dio.post<Map<String, dynamic>>(path, data: data);
-      await _persist(res.data!['token'] as String);
-      return AuthState(user: AppUser.fromJson(res.data!['user'] as Map<String, dynamic>));
+      try {
+        final api = ref.read(apiClientProvider);
+        final res = await api.dio.post<Map<String, dynamic>>(path, data: data);
+        await _persist(res.data!['token'] as String);
+        return AuthState(user: AppUser.fromJson(res.data!['user'] as Map<String, dynamic>));
+      } on DioException catch (error) {
+        final data = error.response?.data;
+        if (data is Map && data['error'] is String) {
+          throw AuthMessage(data['error'] as String);
+        }
+        throw AuthMessage('Giriş yapılamadı. Bilgilerini kontrol edip tekrar dene.');
+      }
     });
   }
 
   Future<void> completeOnboarding(Map<String, dynamic> data) async {
-    final api = ref.read(apiClientProvider);
-    final res = await api.dio.put<Map<String, dynamic>>('/api/user/me', data: data);
+    try {
+      final api = ref.read(apiClientProvider);
+      final res = await api.dio.put<Map<String, dynamic>>('/api/user/me', data: data);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onboarding_completed', true);
+      state = AsyncData(AuthState(
+        user: AppUser.fromJson(res.data!),
+        onboardingCompleted: true,
+      ));
+    } on DioException catch (error) {
+      final data = error.response?.data;
+      if (data is Map && data['error'] is String) {
+        throw AuthMessage(data['error'] as String);
+      }
+      throw AuthMessage('Profil kaydedilemedi. Bağlantıyı kontrol edip tekrar dene.');
+    }
+  }
+
+  Future<void> skipOnboarding() async {
+    final current = state.valueOrNull;
+    if (current?.user == null) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_completed', true);
     state = AsyncData(AuthState(
-      user: AppUser.fromJson(res.data!),
+      user: current!.user,
       onboardingCompleted: true,
     ));
   }
@@ -92,4 +126,12 @@ class AuthController extends AsyncNotifier<AuthState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
   }
+}
+
+class AuthMessage implements Exception {
+  const AuthMessage(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }
